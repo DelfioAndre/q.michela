@@ -30,9 +30,6 @@ $("customer").required = !isTableOrder;
 $("customerLabel").textContent = isTableOrder ? "Nome (opcional)" : "Nome (obrigatório)";
 $("deliveryPhone").required = !isTableOrder;
 $("deliveryAddress").required = !isTableOrder;
-$("tableNotice").textContent = isTableOrder
-    ? "Está na " + $("table").value + ". O pedido será enviado ao Sistema do Gerente."
-    : "Pedido para entrega: escolha pratos do menu ou solicite um orçamento de buffet pelo WhatsApp.";
 $("flowTitle").textContent = isTableOrder ? "Pedido para consumo na mesa" : "Pedido para entrega";
 $("flowDescription").textContent = isTableOrder
     ? "Revise os produtos. Pode enviar o pedido à equipa ou alterar a selecção antes de o enviar."

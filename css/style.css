@@ -133,19 +133,6 @@
          position: relative
       }
 
-      .notice {
-         background: linear-gradient(135deg, rgba(243, 236, 216, .92), rgba(255, 253, 248, .94));
-         border: 1px solid var(--notice-border);
-         color: var(--notice-text);
-         padding: 13px 16px;
-         border-radius: 12px;
-         font-size: 12px;
-         line-height: 1.5;
-         margin-bottom: 20px;
-         border-left: 4px solid var(--accent);
-         box-shadow: 0 10px 24px rgba(50, 51, 40, .04)
-      }
-
       .toolbar {
          display: flex;
          gap: 12px;
