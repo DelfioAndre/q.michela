@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#183a43">
+    <title>Sistema do Gerente | Quinta Michela</title>
+    <link rel="stylesheet" href="/manager/style.css">
+</head>
+
+<body>
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">QUINTA MICHELA</p>
+                <h1>Sistema do Gerente</h1>
+            </div>
+            <button id="logout" class="button secondary" type="button" hidden>Terminar sessão</button>
+        </header>
+
+        <section id="loginPanel" class="panel login-panel">
+            <h2>Iniciar sessão</h2>
+            <p>Acesso reservado à equipa de gestão.</p>
+            <form id="loginForm">
+                <label for="password">Palavra-passe</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required>
+                <button class="button primary" type="submit">Entrar</button>
+            </form>
+        </section>
+
+        <section id="ordersPanel" hidden>
+            <div class="orders-heading">
+                <div>
+                    <h2>Pedidos das mesas</h2>
+                    <p id="lastUpdated" aria-live="polite">A carregar pedidos...</p>
+                </div>
+                <label class="filter-label" for="statusFilter">Estado
+                    <select id="statusFilter">
+                        <option value="">Todos</option>
+                        <option value="new">Novos</option>
+                        <option value="accepted">Aceites</option>
+                        <option value="preparing">Em preparação</option>
+                        <option value="ready">Prontos</option>
+                        <option value="completed">Concluídos</option>
+                        <option value="cancelled">Cancelados</option>
+                    </select>
+                </label>
+            </div>
+            <div id="orders" class="orders" aria-live="polite"></div>
+        </section>
+
+        <p id="message" class="message" role="status"></p>
+    </main>
+    <script src="/manager/app.js"></script>
+</body>
+
+</html>

@@ -6,6 +6,7 @@
    <meta name="viewport" content="width=device-width,initial-scale=1">
    <meta name="theme-color" content="#25362d">
    <title>Quinta Michela | Menu Digital</title>
+   <link rel="icon" type="image/jpeg" href="imagens/logo-michela.jpeg">
    <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -13,22 +14,22 @@
    <header>
       <div class="wrap">
          <div class="brand">
-            <div class="mark">✦</div>
+            <img class="mark" src="imagens/logo-michela.jpeg" alt="Complexo Michela">
             <div><small>RESTAURANTE • LAZER • EXPERIÊNCIAS</small><strong>QUINTA MICHELA</strong></div>
          </div>
          <h1>Sabores para bons momentos.</h1>
-         <p>Explore o nosso menu, escolha os seus favoritos e prepare o seu pedido para partilhar com a nossa equipa.</p>
+         <p>Escolha os seus favoritos. Os pedidos das mesas seguem para a equipa; sem QR de mesa, pode pedir entrega pelo WhatsApp.</p>
       </div>
    </header>
    <main>
       <div class="notice">A disponibilidade e os preços podem variar. Confirme os detalhes com a nossa equipa.</div>
+      <div class="notice" id="tableNotice" aria-live="polite"></div>
       <div class="toolbar"><input id="search" placeholder="Pesquisar no menu..." aria-label="Pesquisar no menu"><button
             class="cartbtn" id="open">Meu pedido (<span id="count">0</span>)</button></div>
       <nav class="cats" id="cats" aria-label="Categorias do menu"></nav>
       <h2 id="heading">O nosso menu</h2>
       <section class="grid" id="items" aria-labelledby="heading"></section>
-      <div class="info"><b>Como fazer o seu pedido?</b><br>Adicione os seus favoritos e mostre a selecção à nossa
-         equipa para confirmar disponibilidade, preços e detalhes.</div>
+      <div class="info"><b id="flowTitle">Como fazer o seu pedido?</b><br><span id="flowDescription"></span></div>
    </main>
    <footer>Quinta Michela • Restaurante, lazer e experiências</footer>
    <dialog class="overlay" id="overlay" aria-labelledby="order-title">
@@ -38,15 +39,26 @@
          </div>
          <div id="lines"></div>
          <div class="total"><span>Total estimado</span><span id="total">A confirmar</span></div>
-         <label>Nome (opcional)<input id="customer" placeholder="O seu nome"></label><label>Mesa / local
-            (opcional)<input id="table" placeholder="Ex.: Mesa 4 ou piscina"></label><label>Observações<textarea
-               id="notes" placeholder="Alguma indicação adicional?"></textarea></label>
+         <label><span id="customerLabel">Nome (opcional)</span><input id="customer" placeholder="O seu nome"></label>
+         <label id="tableField">Mesa identificada pelo QR Code<input id="table" readonly></label>
+         <div id="deliveryFields" hidden>
+            <label>Tipo de pedido
+               <select id="deliveryType">
+                  <option value="dishes">Prato(s) do menu para entrega</option>
+                  <option value="buffet">Solicitar orçamento de buffet</option>
+               </select>
+            </label>
+            <label>Telefone para contacto (obrigatório)<input id="deliveryPhone" type="tel" placeholder="Ex.: 84 123 4567"></label>
+            <label>Morada de entrega (obrigatória)<textarea id="deliveryAddress" placeholder="Bairro, rua e ponto de referência"></textarea></label>
+         </div>
+         <label>Observações<textarea id="notes" placeholder="Indicações adicionais para o pedido"></textarea></label>
          <div class="actions">
-            <button class="send" id="whatsapp" disabled>WhatsApp em breve</button>
-            <button class="secondary" id="waiter">Mostrar à equipa</button>
+            <button class="send" id="sendOrder" type="button">Enviar pedido</button>
+            <button class="send" id="whatsapp" type="button" hidden disabled>WhatsApp em breve</button>
+            <button class="secondary" id="editOrder" type="button">Alterar pedido</button>
             <button class="secondary" id="clearCart">Limpar</button>
          </div>
-         <p class="modalnote" id="modalnote">Para concluir o pedido, mostre esta selecção a um colaborador.</p>
+         <p class="modalnote" id="modalnote"></p>
       </div>
    </dialog>
    <div class="toast" id="toast" aria-live="polite"></div>

@@ -1,24 +1,32 @@
-# MICHELA DIGITAL MENU — versão inicial
+# MICHELA DIGITAL MENU E SISTEMA DO GERENTE
 
 ## Funcionalidades
 - Menu responsivo para telemóvel e computador.
 - Categorias e pesquisa.
 - Carrinho com quantidades e total estimado.
-- Preparação do pedido para WhatsApp.
-- Alternativa para mostrar a selecção a um empregado.
+- Pedidos feitos por QR de mesa enviados ao Sistema do Gerente.
+- Painel protegido para acompanhar pedidos e actualizar o estado.
+- Sem QR de mesa, pedidos de pratos ou pedidos de orçamento de buffet seguem pelo WhatsApp.
 
 ## Configuração obrigatória
 1. Abra `index.html` no VS Code.
-2. Procure `const CONFIG` e substitua `258XXXXXXXXX` pelo WhatsApp oficial (indicativo 258 + 9 dígitos).
+2. Procure `const CONFIG` em `script/app.js` e substitua `258XXXXXXXXX` pelo WhatsApp oficial (indicativo 258 + 9 dígitos).
 3. Edite `PRODUCTS` com nomes, descrições e preços aprovados pela Quinta Michela.
-4. Os preços começam em zero para não inventar valores.
-5. Os cartões usam as fotografias disponíveis na pasta `imagens`. Confirme se cada fotografia corresponde ao prato antes da divulgação.
+4. Os cartões usam as fotografias disponíveis na pasta `imagens`. Confirme se cada fotografia corresponde ao prato e se os preços estão correctos antes da divulgação.
 
-## Teste
-Abra `index.html` directamente no navegador. Não precisa de instalar dependências.
+## Teste local
+1. Instale Node.js 22.13 ou superior.
+2. No PowerShell, defina uma palavra-passe de gerente com pelo menos 12 caracteres e inicie o sistema:
+   ```powershell
+   $env:ADMIN_PASSWORD = "substitua-por-uma-palavra-passe-forte"
+   npm start
+   ```
+3. Abra `http://localhost:3000` para testar o menu e `http://localhost:3000/manager` para o painel.
+4. Execute `npm test` para verificar a API, a autenticação e os pedidos.
+
+Os pedidos ficam guardados em `data/orders.sqlite`. Esta pasta é local e não deve ser adicionada ao Git.
 
 ## Publicação e QR Code
-Publique o ficheiro num alojamento estático (GitHub Pages ou Vercel). Só depois de obter o endereço público definitivo deve ser gerado o QR Code para impressão.
+O GitHub Pages publica apenas ficheiros estáticos. Para receber pedidos reais, publique também o servidor Node.js num alojamento que suporte Node e armazenamento persistente. Configure `ADMIN_PASSWORD`, `DATA_DIR`, `FRONTEND_ORIGIN` (origem do menu, sem caminho) e `ordersApiBaseUrl` em `script/app.js` (endereço público do servidor, sem `/api`). O painel fica em `/manager`.
 
-## Limitação da primeira versão
-“Chamar empregado” apenas orienta o cliente a mostrar a selecção presencialmente. Para notificar a equipa automaticamente será necessário um painel de pedidos ou integração adicional.
+Os QR Codes de mesa usam um endereço individual, por exemplo `https://seu-dominio/?mesa=4`. Depois de publicar o menu, confirme que o endereço abre a mesa certa. Os pedidos de entrega não usam QR nem mesa: exigem nome, telefone e morada e são enviados pelo WhatsApp configurado.
