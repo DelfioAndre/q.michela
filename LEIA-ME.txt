@@ -1,0 +1,24 @@
+# MICHELA DIGITAL MENU — versão inicial
+
+## Funcionalidades
+- Menu responsivo para telemóvel e computador.
+- Categorias e pesquisa.
+- Carrinho com quantidades e total estimado.
+- Preparação do pedido para WhatsApp.
+- Alternativa para mostrar a selecção a um empregado.
+
+## Configuração obrigatória
+1. Abra `index.html` no VS Code.
+2. Procure `const CONFIG` e substitua `258XXXXXXXXX` pelo WhatsApp oficial (indicativo 258 + 9 dígitos).
+3. Edite `PRODUCTS` com nomes, descrições e preços aprovados pela Quinta Michela.
+4. Os preços começam em zero para não inventar valores.
+5. Os cartões usam as fotografias disponíveis na pasta `imagens`. Confirme se cada fotografia corresponde ao prato antes da divulgação.
+
+## Teste
+Abra `index.html` directamente no navegador. Não precisa de instalar dependências.
+
+## Publicação e QR Code
+Publique o ficheiro num alojamento estático (GitHub Pages ou Vercel). Só depois de obter o endereço público definitivo deve ser gerado o QR Code para impressão.
+
+## Limitação da primeira versão
+“Chamar empregado” apenas orienta o cliente a mostrar a selecção presencialmente. Para notificar a equipa automaticamente será necessário um painel de pedidos ou integração adicional.
