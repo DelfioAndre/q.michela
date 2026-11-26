@@ -6,11 +6,15 @@
 - Carrinho com quantidades e total estimado.
 - Pedidos feitos por QR de mesa enviados ao Sistema do Gerente.
 - Painel protegido para acompanhar pedidos e actualizar o estado.
-- Sem QR de mesa, pedidos de pratos ou pedidos de orçamento de buffet seguem pelo WhatsApp.
+- Filtros por mesa, entrega de pratos e orçamento de buffet.
+- Tempo estimado de preparação configurado pelo gerente.
+- Notificação visual no título e no painel para pedidos novos.
+- Sem QR de mesa, pedidos de pratos e solicitações de buffet são registados no Sistema do Gerente.
 
 ## Configuração obrigatória
 1. Abra `index.html` no VS Code.
-2. Procure `const CONFIG` em `script/app.js` e substitua `258XXXXXXXXX` pelo WhatsApp oficial (indicativo 258 + 9 dígitos).
+2. Confirme o `const CONFIG` em `script/app.js`; o WhatsApp oficial já está definido como `258846825006`.
+   Se o servidor ficar num domínio diferente do menu, defina `ordersApiBaseUrl` com o endereço público do servidor, sem `/api`.
 3. Edite `PRODUCTS` com nomes, descrições e preços aprovados pela Quinta Michela.
 4. Os cartões usam as fotografias disponíveis na pasta `imagens`. Confirme se cada fotografia corresponde ao prato e se os preços estão correctos antes da divulgação.
 

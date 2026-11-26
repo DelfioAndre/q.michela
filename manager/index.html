@@ -32,9 +32,18 @@
         <section id="ordersPanel" hidden>
             <div class="orders-heading">
                 <div>
-                    <h2>Pedidos das mesas</h2>
+                    <h2>Pedidos das mesas e entregas</h2>
                     <p id="lastUpdated" aria-live="polite">A carregar pedidos...</p>
+                    <span id="newOrdersBadge" class="new-orders-badge" hidden>0 novos</span>
                 </div>
+                <label class="filter-label" for="typeFilter">Tipo
+                    <select id="typeFilter">
+                        <option value="">Todos</option>
+                        <option value="table">Mesas</option>
+                        <option value="delivery-dishes">Entregas de pratos</option>
+                        <option value="delivery-buffet">Orçamentos de buffet</option>
+                    </select>
+                </label>
                 <label class="filter-label" for="statusFilter">Estado
                     <select id="statusFilter">
                         <option value="">Todos</option>

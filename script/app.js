@@ -1,7 +1,7 @@
 
 /* CONFIGURAR: inserir o WhatsApp oficial no formato 258XXXXXXXXX.
    Substituir os produtos e preços de demonstração pelos dados aprovados. */
-const CONFIG = { whatsapp: "258XXXXXXXXX", currency: "MT", ordersApiBaseUrl: "" };
+const CONFIG = { whatsapp: "258846825006", currency: "MT", ordersApiBaseUrl: "" };
 const randomPrice = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 const CATEGORIES = ["Todos", "Prato do dia", "Petiscos", "Entradas", "Mariscos", "Refeições", "Salgados", "Bebidas", "Coquetéis", "Sobremesas"];
 const PRODUCTS = [
@@ -24,12 +24,14 @@ const isTableOrder = Boolean(tableNumber);
 $("table").value = isTableOrder ? "Mesa " + tableNumber : "";
 $("tableField").hidden = !isTableOrder;
 $("deliveryFields").hidden = isTableOrder;
-$("sendOrder").hidden = !isTableOrder;
-$("whatsapp").hidden = isTableOrder;
+$("sendOrder").hidden = false;
+$("whatsapp").hidden = true;
 $("customer").required = !isTableOrder;
 $("customerLabel").textContent = isTableOrder ? "Nome (opcional)" : "Nome (obrigatório)";
 $("deliveryPhone").required = !isTableOrder;
 $("deliveryAddress").required = !isTableOrder;
+$("deliveryDate").required = !isTableOrder;
+$("deliveryTime").required = !isTableOrder;
 $("flowTitle").textContent = isTableOrder ? "Pedido para consumo na mesa" : "Pedido para entrega";
 $("flowDescription").textContent = isTableOrder
     ? "Revise os produtos. Pode enviar o pedido à equipa ou alterar a selecção antes de o enviar."
@@ -63,7 +65,20 @@ function getOrderItems() {
 }
 
 async function submitTableOrder() {
-    if (!Object.keys(cart).length) return showToast("Adicione produtos ao pedido primeiro");
+    const isBuffet = !isTableOrder && $("deliveryType").value === "buffet";
+    if (!isBuffet && !Object.keys(cart).length) return showToast("Adicione produtos ao pedido primeiro");
+    if (isBuffet && $("notes").value.trim().length < 10) {
+        return showToast("Indique os detalhes do buffet antes de enviar");
+    }
+    if (!isTableOrder) {
+        if (!$("customer").value.trim()) return showToast("Indique o seu nome");
+        if (!$("deliveryPhone").value.trim()) return showToast("Indique um telefone para contacto");
+        if (!$("deliveryAddress").value.trim()) return showToast("Indique a morada de entrega");
+        if (!$("deliveryDate").value) return showToast("Indique a data de entrega");
+        if (!$("deliveryTime").value) return showToast("Indique a hora de entrega");
+        if (!$("deliveryDate").value) return showToast("Indique a data de entrega");
+        if (!$("deliveryTime").value) return showToast("Indique a hora de entrega");
+    }
     const button = $("sendOrder");
     button.disabled = true;
     button.textContent = "A enviar...";
@@ -74,8 +89,15 @@ async function submitTableOrder() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 table: tableNumber,
+                orderType: isTableOrder
+                    ? "table"
+                    : isBuffet ? "delivery-buffet" : "delivery-dishes",
                 customer: $("customer").value,
                 notes: $("notes").value,
+                deliveryPhone: $("deliveryPhone").value,
+                deliveryAddress: $("deliveryAddress").value,
+                deliveryDate: $("deliveryDate").value,
+                deliveryTime: $("deliveryTime").value,
                 items: getOrderItems()
             })
         });
@@ -90,13 +112,13 @@ async function submitTableOrder() {
         itemDetails = {};
         update();
         $("overlay").close();
-        showToast(`Pedido #${result.id} enviado ao gerente`);
+        showToast(isBuffet ? `Solicitação #${result.id} enviada ao gerente` : `Pedido #${result.id} enviado ao gerente`);
     } catch (error) {
         console.error("Falha ao enviar o pedido da mesa:", error);
         showToast("Não foi possível enviar. Verifique a ligação ao Sistema do Gerente.");
     } finally {
         button.disabled = false;
-        button.textContent = "Enviar pedido";
+        button.textContent = isBuffet ? "Enviar pedido de orçamento" : "Enviar pedido";
     }
 }
 
@@ -126,6 +148,8 @@ function sendDeliveryRequest() {
         "Nome: " + $("customer").value.trim(),
         "Telefone: " + $("deliveryPhone").value.trim(),
         "Morada de entrega: " + $("deliveryAddress").value.trim(),
+        "Data pretendida: " + $("deliveryDate").value,
+        "Hora pretendida: " + $("deliveryTime").value,
         "Observações: " + ($("notes").value.trim() || "Nenhuma")
     ].join("\n");
     window.open("https://wa.me/" + CONFIG.whatsapp + "?text=" + encodeURIComponent(message), "_blank");
@@ -141,9 +165,13 @@ $("sendOrder").onclick = submitTableOrder;
 $("whatsapp").onclick = sendDeliveryRequest;
 $("editOrder").onclick = () => $("overlay").close();
 $("deliveryType").onchange = () => {
-    $("notes").placeholder = $("deliveryType").value === "buffet"
+    const isBuffet = $("deliveryType").value === "buffet";
+    $("notes").placeholder = isBuffet
         ? "Indique tipo de buffet, data, número de pessoas ou detalhes do pedido"
         : "Indicações adicionais para o pedido";
+    $("sendOrder").hidden = false;
+    $("sendOrder").textContent = isBuffet ? "Enviar pedido de orçamento" : "Enviar pedido";
+    $("whatsapp").hidden = true;
 };
 $("clearCart").onclick = () => {
     cart = {};
@@ -159,6 +187,10 @@ if (/^258\d{9}$/.test(CONFIG.whatsapp)) {
     $("whatsapp").disabled = true;
     $("whatsapp").textContent = "WhatsApp não configurado";
 }
+$("whatsapp").hidden = true;
+$("sendOrder").textContent = !isTableOrder && $("deliveryType").value === "buffet"
+    ? "Enviar pedido de orçamento"
+    : "Enviar pedido";
 $("modalnote").textContent = isTableOrder
     ? "O pedido será registado no Sistema do Gerente."
     : /^258\d{9}$/.test(CONFIG.whatsapp)

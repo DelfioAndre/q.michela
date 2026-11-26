@@ -47,7 +47,12 @@ function makeElement(tag, className, text) {
 function renderOrder(order) {
     const card = makeElement("article", "order-card");
     const heading = makeElement("div", "order-top");
-    const title = makeElement("h3", "", `Pedido #${order.id} — Mesa ${order.table}`);
+    const titleText = order.orderType === "delivery-dishes"
+        ? `Pedido #${order.id} — Entrega de pratos`
+        : order.orderType === "delivery-buffet"
+            ? `Pedido #${order.id} — Orçamento de buffet`
+            : `Pedido #${order.id} — Mesa ${order.table}`;
+    const title = makeElement("h3", "", titleText);
     const status = makeElement("span", `status status-${order.status}`, order.statusLabel);
     heading.append(title, status);
     card.append(heading);
@@ -55,15 +60,28 @@ function renderOrder(order) {
     const meta = makeElement("p", "order-meta", new Date(order.createdAt).toLocaleString("pt-MZ"));
     card.append(meta);
     if (order.customer) card.append(makeElement("p", "order-detail", `Cliente: ${order.customer}`));
+    if (order.orderType === "delivery-dishes" || order.orderType === "delivery-buffet") {
+        if (order.deliveryPhone) card.append(makeElement("p", "order-detail", `Telefone: ${order.deliveryPhone}`));
+        if (order.deliveryAddress) card.append(makeElement("p", "order-detail", `Morada: ${order.deliveryAddress}`));
+        if (order.deliveryDate) card.append(makeElement("p", "order-detail", `Data pretendida: ${order.deliveryDate}`));
+        if (order.deliveryTime) card.append(makeElement("p", "order-detail", `Hora pretendida: ${order.deliveryTime}`));
+    }
+    if (order.estimatedMinutes) {
+        card.append(makeElement("p", "order-detail", `Tempo estimado: ${order.estimatedMinutes} minutos`));
+    }
 
     const list = makeElement("ul", "item-list");
     order.items.forEach(item => {
         const details = item.details ? ` — ${item.details}` : "";
         list.append(makeElement("li", "", `${item.quantity} × ${item.name}${details}`));
     });
-    card.append(list);
-    const total = Number(order.total).toLocaleString("pt-MZ") + " MT";
-    card.append(makeElement("p", "order-total", `Total estimado: ${total}`));
+    if (order.orderType !== "delivery-buffet") {
+        card.append(list);
+        const total = Number(order.total).toLocaleString("pt-MZ") + " MT";
+        card.append(makeElement("p", "order-total", `Total estimado: ${total}`));
+    } else {
+        card.append(makeElement("p", "order-notes", "Solicitação sem produtos predefinidos."));
+    }
     if (order.notes) card.append(makeElement("p", "order-notes", `Observações: ${order.notes}`));
 
     const controls = makeElement("div", "order-controls");
@@ -78,6 +96,55 @@ function renderOrder(order) {
         select.append(option);
     });
     label.append(select);
+    const timeLabel = makeElement("label", "status-control", "Tempo estimado (minutos)");
+    const timeInput = document.createElement("input");
+    timeInput.type = "number";
+    timeInput.min = "1";
+    timeInput.max = "240";
+    timeInput.step = "1";
+    timeInput.value = order.estimatedMinutes || "";
+    timeInput.placeholder = "Ex.: 30";
+    timeInput.setAttribute("aria-label", `Tempo estimado do pedido ${order.id}`);
+    timeLabel.append(timeInput);
+    if (order.status === "new") {
+        const accept = makeElement("button", "button primary", "Aceitar");
+        accept.type = "button";
+        accept.addEventListener("click", async () => {
+            accept.disabled = true;
+            reject.disabled = true;
+            try {
+                await request(`/api/admin/orders/${order.id}/status`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ status: "accepted", estimatedMinutes: timeInput.value })
+                });
+                showMessage(`Pedido #${order.id} aceite.`);
+                await refreshOrders();
+            } catch (error) {
+                showMessage(error.message, true);
+                accept.disabled = false;
+                reject.disabled = false;
+            }
+        });
+        const reject = makeElement("button", "button reject", "Rejeitar");
+        reject.type = "button";
+        reject.addEventListener("click", async () => {
+            accept.disabled = true;
+            reject.disabled = true;
+            try {
+                await request(`/api/admin/orders/${order.id}/status`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ status: "cancelled", estimatedMinutes: timeInput.value })
+                });
+                showMessage(`Pedido #${order.id} rejeitado.`);
+                await refreshOrders();
+            } catch (error) {
+                showMessage(error.message, true);
+                accept.disabled = false;
+                reject.disabled = false;
+            }
+        });
+        controls.append(accept, reject);
+    }
     const save = makeElement("button", "button primary", "Guardar");
     save.type = "button";
     save.addEventListener("click", async () => {
@@ -85,7 +152,7 @@ function renderOrder(order) {
         try {
             await request(`/api/admin/orders/${order.id}/status`, {
                 method: "PATCH",
-                body: JSON.stringify({ status: select.value })
+                body: JSON.stringify({ status: select.value, estimatedMinutes: timeInput.value })
             });
             showMessage(`Estado do pedido #${order.id} actualizado.`);
             await refreshOrders();
@@ -94,16 +161,23 @@ function renderOrder(order) {
             save.disabled = false;
         }
     });
-    controls.append(label, save);
+    controls.append(label, timeLabel, save);
     card.append(controls);
     return card;
 }
 
 async function refreshOrders() {
     try {
-        const filter = $("statusFilter").value;
-        const query = filter ? `?status=${encodeURIComponent(filter)}` : "";
-        const { orders } = await request(`/api/admin/orders${query}`);
+        const statusFilter = $("statusFilter").value;
+        const typeFilter = $("typeFilter").value;
+        const params = new URLSearchParams();
+        if (statusFilter) params.set("status", statusFilter);
+        if (typeFilter) params.set("type", typeFilter);
+        const query = params.size ? `?${params.toString()}` : "";
+        const [{ orders }, allResult] = await Promise.all([
+            request(`/api/admin/orders${query}`),
+            request("/api/admin/orders")
+        ]);
         const container = $("orders");
         container.replaceChildren();
         if (!orders.length) {
@@ -111,6 +185,13 @@ async function refreshOrders() {
         } else {
             orders.forEach(order => container.append(renderOrder(order)));
         }
+        const newOrders = allResult.orders.filter(order => order.status === "new").length;
+        const badge = $("newOrdersBadge");
+        badge.hidden = newOrders === 0;
+        badge.textContent = `${newOrders} novo${newOrders === 1 ? "" : "s"}`;
+        document.title = newOrders
+            ? `(${newOrders}) Sistema do Gerente | Quinta Michela`
+            : "Sistema do Gerente | Quinta Michela";
         $("lastUpdated").textContent = `Actualizado às ${new Date().toLocaleTimeString("pt-MZ")}`;
     } catch (error) {
         showMessage(error.message, true);
@@ -148,6 +229,7 @@ $("logout").addEventListener("click", async () => {
 });
 
 $("statusFilter").addEventListener("change", refreshOrders);
+$("typeFilter").addEventListener("change", refreshOrders);
 request("/api/admin/orders")
     .then(() => setAuthenticated(true))
     .catch(() => setAuthenticated(false));

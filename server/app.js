@@ -7,6 +7,7 @@ const { DatabaseSync } = require("node:sqlite");
 const ROOT = path.resolve(__dirname, "..");
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const ORDER_STATUSES = new Set(["new", "accepted", "preparing", "ready", "completed", "cancelled"]);
+const ORDER_TYPES = new Set(["table", "delivery-dishes", "delivery-buffet"]);
 const STATUS_LABELS = {
     new: "Novo",
     accepted: "Aceite",
@@ -110,6 +111,12 @@ function createApp(options = {}) {
             table_number TEXT NOT NULL,
             customer_name TEXT NOT NULL DEFAULT '',
             notes TEXT NOT NULL DEFAULT '',
+            order_type TEXT NOT NULL DEFAULT 'table',
+            delivery_phone TEXT NOT NULL DEFAULT '',
+            delivery_address TEXT NOT NULL DEFAULT '',
+            delivery_date TEXT NOT NULL DEFAULT '',
+            delivery_time TEXT NOT NULL DEFAULT '',
+            estimated_minutes INTEGER,
             status TEXT NOT NULL DEFAULT 'new',
             created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
             updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
@@ -124,6 +131,26 @@ function createApp(options = {}) {
             details TEXT NOT NULL DEFAULT ''
         );
     `);
+    const orderColumns = database.prepare("PRAGMA table_info(orders)").all();
+    const existingOrderColumns = new Set(orderColumns.map(column => column.name));
+    if (!existingOrderColumns.has("order_type")) {
+        database.exec("ALTER TABLE orders ADD COLUMN order_type TEXT NOT NULL DEFAULT 'table'");
+    }
+    if (!existingOrderColumns.has("delivery_phone")) {
+        database.exec("ALTER TABLE orders ADD COLUMN delivery_phone TEXT NOT NULL DEFAULT ''");
+    }
+    if (!existingOrderColumns.has("delivery_address")) {
+        database.exec("ALTER TABLE orders ADD COLUMN delivery_address TEXT NOT NULL DEFAULT ''");
+    }
+    if (!existingOrderColumns.has("delivery_date")) {
+        database.exec("ALTER TABLE orders ADD COLUMN delivery_date TEXT NOT NULL DEFAULT ''");
+    }
+    if (!existingOrderColumns.has("delivery_time")) {
+        database.exec("ALTER TABLE orders ADD COLUMN delivery_time TEXT NOT NULL DEFAULT ''");
+    }
+    if (!existingOrderColumns.has("estimated_minutes")) {
+        database.exec("ALTER TABLE orders ADD COLUMN estimated_minutes INTEGER");
+    }
 
     const allowedOrigins = new Set(options.allowedOrigins || (process.env.FRONTEND_ORIGIN || "")
         .split(",").map(origin => origin.trim()).filter(Boolean));
@@ -132,7 +159,10 @@ function createApp(options = {}) {
 
     function setCors(request, response) {
         const origin = request.headers.origin;
-        if (origin && !allowedOrigins.has(origin)) {
+        const host = request.headers.host;
+        const protocol = request.socket && request.socket.encrypted ? "https" : "http";
+        const sameOrigin = host ? `${protocol}://${host}` : "";
+        if (origin && allowedOrigins.size > 0 && !allowedOrigins.has(origin) && origin !== sameOrigin) {
             sendJson(response, 403, { error: "Origem não autorizada." });
             return false;
         }
@@ -231,13 +261,41 @@ function createApp(options = {}) {
 
             if (request.method === "POST" && pathname === "/api/orders") {
                 const body = requiredObject(await readJson(request), "Pedido");
-                const tableNumber = requiredText(body.table, "Mesa", 20);
-                if (!/^[A-Za-z0-9À-ÿ][A-Za-z0-9À-ÿ._-]{0,19}$/.test(tableNumber)) {
-                    throw new HttpError(400, "Mesa inválida.");
+                const orderType = body.orderType || "table";
+                if (!["table", "delivery-dishes", "delivery-buffet"].includes(orderType)) {
+                    throw new HttpError(400, "Tipo de pedido inválido.");
+                }
+                let tableNumber = "";
+                let deliveryPhone = "";
+                let deliveryAddress = "";
+                let deliveryDate = "";
+                let deliveryTime = "";
+                if (orderType === "table") {
+                    tableNumber = requiredText(body.table, "Mesa", 20);
+                    if (!/^[A-Za-z0-9À-ÿ][A-Za-z0-9À-ÿ._-]{0,19}$/.test(tableNumber)) {
+                        throw new HttpError(400, "Mesa inválida.");
+                    }
+                } else {
+                    tableNumber = "Entrega";
+                    deliveryPhone = requiredText(body.deliveryPhone, "Telefone", 40);
+                    deliveryAddress = requiredText(body.deliveryAddress, "Morada", 300);
+                    deliveryDate = requiredText(body.deliveryDate, "Data de entrega", 10);
+                    deliveryTime = requiredText(body.deliveryTime, "Hora de entrega", 10);
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(deliveryDate) ||
+                        !/^([01]\d|2[0-3]):[0-5]\d$/.test(deliveryTime)) {
+                        throw new HttpError(400, "Data ou hora de entrega inválida.");
+                    }
                 }
                 const customerName = requiredText(body.customer || "", "Nome", 80, true);
+                if (orderType !== "table" && !customerName) {
+                    throw new HttpError(400, "Nome inválido.");
+                }
                 const notes = requiredText(body.notes || "", "Observações", 500, true);
-                if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 30) {
+                if (orderType === "delivery-buffet" && notes.length < 10) {
+                    throw new HttpError(400, "Indique os detalhes do buffet com pelo menos 10 caracteres.");
+                }
+                if (!Array.isArray(body.items) || body.items.length > 30 ||
+                    (orderType !== "delivery-buffet" && body.items.length < 1)) {
                     throw new HttpError(400, "O pedido deve conter entre 1 e 30 produtos.");
                 }
                 const items = body.items.map(item => {
@@ -260,8 +318,8 @@ function createApp(options = {}) {
                 database.exec("BEGIN IMMEDIATE");
                 try {
                     const orderResult = database.prepare(
-                        "INSERT INTO orders (table_number, customer_name, notes) VALUES (?, ?, ?)"
-                    ).run(tableNumber, customerName, notes);
+                        "INSERT INTO orders (table_number, customer_name, notes, order_type, delivery_phone, delivery_address, delivery_date, delivery_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                    ).run(tableNumber, customerName, notes, orderType, deliveryPhone, deliveryAddress, deliveryDate, deliveryTime);
                     const orderId = Number(orderResult.lastInsertRowid);
                     const insertItem = database.prepare(
                         "INSERT INTO order_items (order_id, product_id, product_name, quantity, unit_price, details) VALUES (?, ?, ?, ?, ?, ?)"
@@ -281,12 +339,31 @@ function createApp(options = {}) {
             if (request.method === "GET" && pathname === "/api/admin/orders") {
                 if (!requireManager(request, response)) return;
                 const filter = url.searchParams.get("status");
+                const typeFilter = url.searchParams.get("type");
                 if (filter && !ORDER_STATUSES.has(filter)) {
                     throw new HttpError(400, "Estado inválido.");
                 }
-                const orders = filter
-                    ? database.prepare("SELECT * FROM orders WHERE status = ? ORDER BY created_at DESC").all(filter)
-                    : database.prepare("SELECT * FROM orders ORDER BY created_at DESC").all();
+                if (typeFilter && !ORDER_TYPES.has(typeFilter)) {
+                    throw new HttpError(400, "Tipo de pedido inválido.");
+                }
+                let orders;
+                if (filter && typeFilter) {
+                    orders = database.prepare(
+                        "SELECT * FROM orders WHERE status = ? AND order_type = ? ORDER BY created_at DESC"
+                    ).all(filter, typeFilter);
+                } else if (filter) {
+                    orders = database.prepare(
+                        "SELECT * FROM orders WHERE status = ? ORDER BY created_at DESC"
+                    ).all(filter);
+                } else if (typeFilter) {
+                    orders = database.prepare(
+                        "SELECT * FROM orders WHERE order_type = ? ORDER BY created_at DESC"
+                    ).all(typeFilter);
+                } else {
+                    orders = database.prepare(
+                        "SELECT * FROM orders ORDER BY created_at DESC"
+                    ).all();
+                }
                 const getItems = database.prepare(
                     "SELECT product_id AS productId, product_name AS name, quantity, unit_price AS unitPrice, details FROM order_items WHERE order_id = ? ORDER BY id"
                 );
@@ -298,6 +375,12 @@ function createApp(options = {}) {
                             table: order.table_number,
                             customer: order.customer_name,
                             notes: order.notes,
+                            orderType: order.order_type,
+                            deliveryPhone: order.delivery_phone,
+                            deliveryAddress: order.delivery_address,
+                            deliveryDate: order.delivery_date,
+                            deliveryTime: order.delivery_time,
+                            estimatedMinutes: order.estimated_minutes,
                             status: order.status,
                             statusLabel: STATUS_LABELS[order.status],
                             createdAt: order.created_at,
@@ -318,13 +401,25 @@ function createApp(options = {}) {
                 if (!ORDER_STATUSES.has(body.status)) {
                     throw new HttpError(400, "Estado inválido.");
                 }
+                let estimatedMinutes = null;
+                if (body.estimatedMinutes !== undefined && body.estimatedMinutes !== null && body.estimatedMinutes !== "") {
+                    estimatedMinutes = Number(body.estimatedMinutes);
+                    if (!Number.isInteger(estimatedMinutes) || estimatedMinutes < 1 || estimatedMinutes > 240) {
+                        throw new HttpError(400, "Tempo estimado inválido.");
+                    }
+                }
                 const result = database.prepare(
-                    "UPDATE orders SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?"
-                ).run(body.status, orderId);
+                    "UPDATE orders SET status = ?, estimated_minutes = COALESCE(?, estimated_minutes), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?"
+                ).run(body.status, estimatedMinutes, orderId);
                 if (result.changes === 0) {
                     throw new HttpError(404, "Pedido não encontrado.");
                 }
-                sendJson(response, 200, { id: orderId, status: body.status, statusLabel: STATUS_LABELS[body.status] });
+                sendJson(response, 200, {
+                    id: orderId,
+                    status: body.status,
+                    statusLabel: STATUS_LABELS[body.status],
+                    estimatedMinutes
+                });
                 return;
             }
 

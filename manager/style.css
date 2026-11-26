@@ -132,6 +132,11 @@ button:focus-visible {
     background: #e8ece7;
 }
 
+.reject {
+    color: #7f241c;
+    background: #f6e1dd;
+}
+
 .orders-heading {
     align-items: flex-end;
     margin-top: 28px;
@@ -190,6 +195,17 @@ button:focus-visible {
 .order-meta {
     margin: 8px 0;
     font-size: 13px;
+}
+
+.new-orders-badge {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    color: #7f241c;
+    background: #f3ecd8;
+    font-size: 12px;
+    font-weight: 800;
 }
 
 .order-detail,
